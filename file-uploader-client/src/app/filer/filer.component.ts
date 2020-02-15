@@ -9,7 +9,8 @@ import { takeUntil } from 'rxjs/operators';
 import { Ufile } from '../ufile';
 import {ParallelHasher} from 'ts-md5/dist/parallel_hasher';
 
-const URL = 'http://192.168.0.11:8080/api/uploadFile';
+// const URL = 'http://localhost:8080/api/uploadFile';
+const URL = 'http://localhost:8080/api/object-storage/object/upload/initiate';
 const displayURL = 'http://192.168.0.11:8080/api/displayFile/';
 
 @Component({
@@ -30,7 +31,7 @@ export class FilerComponent implements OnDestroy, OnInit {
     allowedTypes: 'video/*',
     endpoint: URL,
     url: URL,
-    chunkSize: 1024 * 1024 * 1,
+    chunkSize: 1024 * 1024 * 5,
     autoUpload: false
   };
   displayedColumns: string[] = ['encryptScreen','encryptPath', 'name', 'duration'];
@@ -82,12 +83,26 @@ export class FilerComponent implements OnDestroy, OnInit {
     upload(id: string, t: string, uri: string) {
       this.uploadService.control({
               action: 'upload',
-              itemOptions: { uploadId: id, token: t, metadata: {uploadId:id, hash: t, URI: uri} }
+              itemOptions: {
+                  uploadId: id,
+                  token: t,
+                  metadata: {
+                    uploadId:id,
+                    hash: t,
+                    URI: uri,
+                    bucketName: "5e3e4178ce962c4a38cb4450-bits-bucket-for-production",
+                    sourceDirectoryUrl: "",
+                    forceUpload: false
+                }
+              }
             });
     }
 
     onUpload(uploadsOutStream: Observable<UploadState>) {
       this.state = uploadsOutStream;
+      var bucketName;
+      var objectKey;
+      var uploadId;
       uploadsOutStream.pipe(takeUntil(this.ngUnsubscribe)).subscribe((item: UploadState) => {
         this.itemState = item;
         const index = this.uploads.findIndex(f => f.uploadId === item.uploadId);
@@ -98,13 +113,26 @@ export class FilerComponent implements OnDestroy, OnInit {
           });
 
         } else {
+          console.log(item);
+          if (item.response != undefined) {
+            console.log(item.response.bucketName);
+            bucketName = item.response.bucketName;
+            console.log(item.response.objectKey);
+            objectKey = item.response.objectKey;
+            console.log(item.response.uploadId);
+            uploadId = item.response.uploadId;
+          }
           this.uploads[index].progress = item.progress;
           this.uploads[index].status = item.status;
         }
-        if(item.status === 'complete'){
+        if(item.status === 'complete') {
           this.uploads[index].progress = 100;
+          if (item.response != undefined) {
+            console.log(item.response.bucketName);
+            bucketName = item.response.bucketName
+          }
           this.hasher.hash(item.file).then((result)=> {
-            var fileInfo = {name: item.URI, size: item.size, currentChunk: 0, contentType: item.file.type, hash: result};
+            var fileInfo = {name: item.URI, size: item.size, currentChunk: 0, contentType: item.file.type, hash: result, objectKey, bucketName, uploadId};
             this.authService.notifyCompleted(fileInfo).subscribe((data) => {
                 this.completedList.push(data);
                 this.changeDetectorRefs.detectChanges();

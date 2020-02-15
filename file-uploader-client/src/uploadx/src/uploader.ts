@@ -25,6 +25,7 @@ export class Uploader implements UploaderOptions {
   readonly uploadId: string;
   readonly hash: string;
   remaining: number;
+  bucketName: string;
   response: any;
   responseStatus: number;
   speed: number;
@@ -53,11 +54,14 @@ export class Uploader implements UploaderOptions {
   configure(item = {} as UploaderOptions | UploadItem): void {
     const { metadata, headers, token } = item;
     this.metadata = {
-      name: this.name,
-      mimeType: this.mimeType,
+      fileName: this.name,
+      contentType: this.mimeType,
       size: this.size,
       hash: metadata? metadata.hash: "",
       uploadId: metadata? metadata.uploadId: "",
+      bucketName: metadata ? metadata.bucketName: "",
+      sourceDirectoryUrl: metadata ? metadata.sourceDirectoryUrl: "",
+      forceUpload: metadata ? metadata.forceUpload: false,
       ...unfunc(metadata || this.metadata, this.file)
     };
     this.URI = metadata?metadata.URI:null;
@@ -115,7 +119,6 @@ export class Uploader implements UploaderOptions {
     return new Promise((resolve, reject) => {
 
       if (!this.URI || this.status === 'error') {
-        console.log(this.URI);
         // get file URI
         const xhr = new XMLHttpRequest();
         xhr.open(this.options.method, this.options.endpoint, true);
@@ -203,7 +206,7 @@ export class Uploader implements UploaderOptions {
   private sendChunk(offset?: number) {
     if (this.status === 'uploading') {
       const isValidRange = offset >= 0 && offset < this.size;
-      let body = null;
+      let body ;
       const xhr: XMLHttpRequest = XHRFactory.getInstance();
       xhr.open('PUT', this.URI, true);
       xhr.responseType = 'json';
@@ -218,6 +221,9 @@ export class Uploader implements UploaderOptions {
       } else {
         xhr.setRequestHeader('Content-Range', `bytes */${this.size}`);
       }
+      // xhr.setRequestHeader('Content-Bucket', `5e3e4178ce962c4a38cb4450-bits-bucket-for-production`);
+      // xhr.setRequestHeader('Content-Object-Key', `ajoker.jpg`);
+      // xhr.setRequestHeader('Content-FilePart', `part 5e3e4178ce962c4a38cb4450-bits-bucket-for-production`);
       this.setCommonHeaders(xhr);
       xhr.send(body);
       return xhr;
