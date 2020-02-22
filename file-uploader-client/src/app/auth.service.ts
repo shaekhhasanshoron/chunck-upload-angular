@@ -23,7 +23,7 @@ export class AuthService {
     return this.http.post(apiDeviceUrl+'filter-ids', JSON.stringify(reportFilter) , {headers: { "Content-Type": "application/json; charset=UTF-8" }});
   }
 
-  notifyCompleted(fileInfo): Observable<any> {
-    return this.http.post(apiDeviceUrl + 'notify', JSON.stringify(fileInfo) , {headers: { "Content-Type": "application/json; charset=UTF-8" }});
+  notifyCompleted(fileInfo, token): Observable<any> {
+    return this.http.post(apiDeviceUrl + 'notify', JSON.stringify(fileInfo) , {headers: { "Content-Type": "application/json; charset=UTF-8", "x-upload-token": token }});
   }
 }

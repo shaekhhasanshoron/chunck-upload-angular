@@ -115,11 +115,8 @@ export class FilerComponent implements OnDestroy, OnInit {
         } else {
           console.log(item);
           if (item.response != undefined) {
-            console.log(item.response.bucketName);
             bucketName = item.response.bucketName;
-            console.log(item.response.objectKey);
             objectKey = item.response.objectKey;
-            console.log(item.response.uploadId);
             uploadId = item.response.uploadId;
           }
           this.uploads[index].progress = item.progress;
@@ -127,15 +124,10 @@ export class FilerComponent implements OnDestroy, OnInit {
         }
         if(item.status === 'complete') {
           this.uploads[index].progress = 100;
-          if (item.response != undefined) {
-            console.log(item.response.bucketName);
-            bucketName = item.response.bucketName
-          }
           this.hasher.hash(item.file).then((result)=> {
             var fileInfo = {name: item.URI, size: item.size, currentChunk: 0, contentType: item.file.type, hash: result, objectKey, bucketName, uploadId};
-            this.authService.notifyCompleted(fileInfo).subscribe((data) => {
-                this.completedList.push(data);
-                this.changeDetectorRefs.detectChanges();
+            this.authService.notifyCompleted(fileInfo, item.uploadToken).subscribe((data) => {
+              console.log("Notified");
             }, (err) => {
               console.log(err);
             });

@@ -44,6 +44,7 @@ export interface UploadState {
   status: UploadStatus;
   uploadId: string;
   URI: string;
+  uploadToken: string;
 }
 
 export interface UploadItem {

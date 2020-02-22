@@ -25,7 +25,10 @@ export class Uploader implements UploaderOptions {
   readonly uploadId: string;
   readonly hash: string;
   remaining: number;
-  bucketName: string;
+  private xBucketName: string;
+  private xObjectKey: string;
+  xToken: string;
+  private xUploadId: string;
   response: any;
   responseStatus: number;
   speed: number;
@@ -109,7 +112,8 @@ export class Uploader implements UploaderOptions {
       speed: this.speed,
       status: this._status,
       uploadId: this.uploadId,
-      URI: this.URI
+      URI: this.URI,
+      uploadToken: this.xToken,
     };
     //
     setTimeout(() => this.options.subj.next(state));
@@ -139,6 +143,7 @@ export class Uploader implements UploaderOptions {
           if(xhr.status == 208){
             this.resumed = true;
             this.resumeRange = getRange(xhr);
+            this.xToken = getKeyFromResponse(xhr, 'x-upload-token');
             const location = getKeyFromResponse(xhr, 'location');
             if (!location) {
               reject(new Error('invalid response: missing location url'));
@@ -148,9 +153,14 @@ export class Uploader implements UploaderOptions {
             }
           }else if(xhr.status == 226){
             this.status = 'complete' as UploadStatus;
+            this.xToken = getKeyFromResponse(xhr, 'x-upload-token');
             this.progress = 100;
           }else if (xhr.status < 226 && xhr.status > 199) {
             const location = getKeyFromResponse(xhr, 'location');
+            this.xBucketName = getKeyFromResponse(xhr, 'x-upload-bucket');
+            this.xObjectKey = getKeyFromResponse(xhr, 'x-upload-object-key');
+            this.xUploadId = getKeyFromResponse(xhr, 'x-upload-id');
+            this.xToken = getKeyFromResponse(xhr, 'x-upload-token');
             if (!location) {
               reject(new Error('invalid response: missing location url'));
             } else {
@@ -188,6 +198,7 @@ export class Uploader implements UploaderOptions {
       }else if(this.progress && this.progress == 100){
         console.log("File is exist...");
       }else if (this.progress) {
+        console.log("Resume in processing")
         this.xhrRequest = this.sendChunk();
       } else {
         this.startTime = this.startTime || new Date().getTime();
@@ -221,9 +232,10 @@ export class Uploader implements UploaderOptions {
       } else {
         xhr.setRequestHeader('Content-Range', `bytes */${this.size}`);
       }
-      // xhr.setRequestHeader('Content-Bucket', `5e3e4178ce962c4a38cb4450-bits-bucket-for-production`);
-      // xhr.setRequestHeader('Content-Object-Key', `ajoker.jpg`);
-      // xhr.setRequestHeader('Content-FilePart', `part 5e3e4178ce962c4a38cb4450-bits-bucket-for-production`);
+      xhr.setRequestHeader('x-upload-bucket', this.xBucketName);
+      xhr.setRequestHeader('x-upload-object-key', this.xObjectKey);
+      xhr.setRequestHeader('x-upload-id', this.xUploadId);
+      xhr.setRequestHeader('x-upload-token', this.xToken);
       this.setCommonHeaders(xhr);
       xhr.send(body);
       return xhr;
@@ -253,15 +265,18 @@ export class Uploader implements UploaderOptions {
     const onSuccess = () => {
       this.responseStatus = xhr.status;
       if (xhr.status === 200 || xhr.status === 201) {
+        console.log("Complete Hoye Geche");
         this.progress = 100;
         this.response = parseJson(xhr);
+        this.xToken = getKeyFromResponse(xhr, 'x-upload-token');
+        console.log(this.xToken);
         XHRFactory.release(xhr);
         this.status = 'complete' as UploadStatus;
       } else if (xhr.status < 400) {
         const range = getRange(xhr);
+        this.xToken = getKeyFromResponse(xhr, 'x-upload-token');
         this.retry.reset();
         XHRFactory.release(xhr);
-        // send next chunk
         this.xhrRequest = this.sendChunk(range);
       } else {
         onError();
